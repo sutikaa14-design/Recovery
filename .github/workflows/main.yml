@@ -501,6 +501,190 @@ jobs:
             cat "$f"
           done
 
+      - name: Harden recovery flow and enable live results
+        working-directory: \${{ steps.locate.outputs.project_dir }}
+        run: |
+          set -e
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/src/main/java/com/recoverx/app/ui/viewmodel/RecoveryViewModel.kt")
+          s = p.read_text()
+          needle = """    fun openPreview(file: RecoverableFile) {
+          _uiState.update { it.copy(currentScreen = ScreenState.Preview(file)) }
+      }
+"""
+          replacement = """    fun openPreview(file: RecoverableFile) {
+          _uiState.update { it.copy(currentScreen = ScreenState.Preview(file)) }
+      }
+
+      fun viewResultsDuringScan() {
+          if (_uiState.value.foundFiles.isNotEmpty()) {
+              _uiState.update { it.copy(currentScreen = ScreenState.FoundFiles) }
+          }
+      }
+
+      fun recoverSingle(file: RecoverableFile) {
+          val updated = _uiState.value.foundFiles.map {
+              it.copy(isSelected = it.id == file.id)
+          }
+          _uiState.update {
+              it.copy(
+                  foundFiles = updated,
+                  selectedCount = 1,
+                  selectedTotalBytes = file.sizeBytes,
+                  isAllSelected = false,
+                  isTargetDestinationDialogVisible = true
+              )
+          }
+      }
+"""
+          if needle not in s: raise SystemExit("openPreview block not found")
+          s = s.replace(needle, replacement)
+
+          needle = """    fun executeRecovery(targetTreeUri: Uri? = null) {
+          hideDestinationDialog()
+"""
+          replacement = """    fun executeRecovery(targetTreeUri: Uri? = null) {
+          if (_uiState.value.scanProgress.isScanning) {
+              scanJob?.cancel()
+          }
+          hideDestinationDialog()
+"""
+          if needle not in s: raise SystemExit("executeRecovery header not found")
+          s = s.replace(needle, replacement)
+          p.write_text(s)
+
+          p = Path("app/src/main/java/com/recoverx/app/MainActivity.kt")
+          s = p.read_text()
+          old = """                            ScanningScreen(
+                                state = state,
+                                onCancelScan = { viewModel.cancelScan() }
+                            )"""
+          new = """                            ScanningScreen(
+                                state = state,
+                                onCancelScan = { viewModel.cancelScan() },
+                                onViewResults = { viewModel.viewResultsDuringScan() }
+                            )"""
+          if old not in s: raise SystemExit("ScanningScreen call not found")
+          s = s.replace(old, new)
+          s = s.replace(
+              "onRecoverSingle = { viewModel.showDestinationDialog() }",
+              "onRecoverSingle = { viewModel.recoverSingle(screen.file) }"
+          )
+          p.write_text(s)
+
+          p = Path("app/src/main/java/com/recoverx/app/ui/screens/ScanningScreen.kt")
+          s = p.read_text()
+          old = """fun ScanningScreen(
+    state: UiState,
+    onCancelScan: () -> Unit
+) {"""
+          new = """fun ScanningScreen(
+    state: UiState,
+    onCancelScan: () -> Unit,
+    onViewResults: () -> Unit
+) {"""
+          if old not in s: raise SystemExit("ScanningScreen signature not found")
+          s = s.replace(old, new)
+          needle = """        Spacer(modifier = Modifier.height(20.dp))
+
+        // Category Matrix"""
+          replacement = """        if (state.foundFiles.isNotEmpty()) {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, CyanPrimary.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${state.foundFiles.size} file sudah ditemukan",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = "Hasil dapat direview dan dipulihkan sekarang. Pemindaian masih berlangsung.",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Button(
+                        onClick = onViewResults,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CyanPrimary,
+                            contentColor = DarkBackground
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Visibility, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Lihat Hasil", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Category Matrix"""
+          if needle not in s: raise SystemExit("ScanningScreen insertion point not found")
+          s = s.replace(needle, replacement)
+          p.write_text(s)
+
+          p = Path("app/src/main/java/com/recoverx/app/data/recovery/RecoveryManager.kt")
+          s = p.read_text()
+          old = """        if (targetTreeUri == null && !defaultOutputDir.exists()) {
+            defaultOutputDir.mkdirs()
+        }"""
+          new = """        if (targetTreeUri == null) {
+            if (!defaultOutputDir.exists() && !defaultOutputDir.mkdirs()) {
+                throw IllegalStateException("Folder pemulihan tidak dapat dibuat: ${defaultOutputDir.absolutePath}")
+            }
+            if (!defaultOutputDir.isDirectory || !defaultOutputDir.canWrite()) {
+                throw IllegalStateException("Folder pemulihan tidak dapat ditulis: ${defaultOutputDir.absolutePath}")
+            }
+        }"""
+          if old not in s: raise SystemExit("default recovery folder block not found")
+          s = s.replace(old, new)
+
+          old = """                val outFile = File(defaultFolder, sanitizedName)
+                restoredPath = outFile.absolutePath
+                outputStream = FileOutputStream(outFile)"""
+          new = """                val outFile = nextAvailableFile(defaultFolder, sanitizedName)
+                restoredPath = outFile.absolutePath
+                outputStream = FileOutputStream(outFile, false)"""
+          if old not in s: raise SystemExit("default output block not found")
+          s = s.replace(old, new)
+
+          needle = """    private fun sanitizeFileName(name: String, extension: String): String {"""
+          helper = """    private fun nextAvailableFile(folder: File, requestedName: String): File {
+        val base = File(folder, requestedName)
+        if (!base.exists()) return base
+        val dot = requestedName.lastIndexOf('.')
+        val stem = if (dot > 0) requestedName.substring(0, dot) else requestedName
+        val ext = if (dot > 0) requestedName.substring(dot) else ""
+        var index = 1
+        while (true) {
+            val candidate = File(folder, "${stem}_$index$ext")
+            if (!candidate.exists()) return candidate
+            index++
+        }
+    }
+
+"""
+          if needle not in s: raise SystemExit("sanitize helper anchor not found")
+          s = s.replace(needle, helper + needle)
+          p.write_text(s)
+          PY
+
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
