@@ -326,14 +326,14 @@ jobs:
         run: |
           set -e
           python3 - <<'PY'
-from pathlib import Path
-p = Path("app/src/main/java/com/recoverx/app/ui/screens/FoundFilesScreen.kt")
-s = p.read_text()
-s = s.replace("import androidx.compose.foundation.lazy.LazyRow", "import androidx.compose.foundation.lazy.LazyRow\nimport androidx.compose.foundation.lazy.grid.GridCells\nimport androidx.compose.foundation.lazy.grid.LazyVerticalGrid")
-s = s.replace("import androidx.compose.foundation.layout.*", "import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.shape.CircleShape\nimport androidx.compose.ui.graphics.asImageBitmap\nimport androidx.compose.ui.layout.ContentScale")
-s = s.replace("import androidx.compose.runtime.Composable", "import androidx.compose.runtime.*")
-s = s.replace("import coil.compose.AsyncImage", "import coil.compose.AsyncImage\nimport android.graphics.Bitmap\nimport android.media.MediaMetadataRetriever\nimport kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.withContext")
-old = """                LazyColumn(
+          from pathlib import Path
+          p = Path("app/src/main/java/com/recoverx/app/ui/screens/FoundFilesScreen.kt")
+          s = p.read_text()
+          s = s.replace("import androidx.compose.foundation.lazy.LazyRow", "import androidx.compose.foundation.lazy.LazyRow\nimport androidx.compose.foundation.lazy.grid.GridCells\nimport androidx.compose.foundation.lazy.grid.LazyVerticalGrid")
+          s = s.replace("import androidx.compose.foundation.layout.*", "import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.shape.CircleShape\nimport androidx.compose.ui.graphics.asImageBitmap\nimport androidx.compose.ui.layout.ContentScale")
+          s = s.replace("import androidx.compose.runtime.Composable", "import androidx.compose.runtime.*")
+          s = s.replace("import coil.compose.AsyncImage", "import coil.compose.AsyncImage\nimport android.graphics.Bitmap\nimport android.media.MediaMetadataRetriever\nimport kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.withContext")
+          old = """                LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -345,7 +345,7 @@ old = """                LazyColumn(
                         )
                     }
                 }"""
-new = """                LazyVerticalGrid(
+          new = """                LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -359,25 +359,25 @@ new = """                LazyVerticalGrid(
                         )
                     }
                 }"""
-if old not in s: raise SystemExit("results list block not found")
-s = s.replace(old, new)
-start = s.index("@Composable\nprivate fun RecoverableFileCard(")
-end = s.index("\nfun formatFileSize(bytes: Long): String", start)
-card = """@Composable
-private fun RecoverableFileCard(
-    file: RecoverableFile,
-    onToggleSelect: () -> Unit,
-    onOpenPreview: () -> Unit
-) {
-    val isPhoto = file.category == ScanCategory.PHOTOS
-    val isVideo = file.category == ScanCategory.VIDEOS
-    Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = if (file.isSelected) DarkSurfaceVariant else DarkSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (file.isSelected) CyanPrimary else Color(0xFF1E293B)),
-        modifier = Modifier.fillMaxWidth().clickable { onOpenPreview() }
-    ) {
-        Column {
+          if old not in s: raise SystemExit("results list block not found")
+          s = s.replace(old, new)
+          start = s.index("@Composable\nprivate fun RecoverableFileCard(")
+          end = s.index("\nfun formatFileSize(bytes: Long): String", start)
+          card = """@Composable
+          private fun RecoverableFileCard(
+              file: RecoverableFile,
+              onToggleSelect: () -> Unit,
+              onOpenPreview: () -> Unit
+          ) {
+              val isPhoto = file.category == ScanCategory.PHOTOS
+              val isVideo = file.category == ScanCategory.VIDEOS
+              Card(
+                  shape = RoundedCornerShape(14.dp),
+                  colors = CardDefaults.cardColors(containerColor = if (file.isSelected) DarkSurfaceVariant else DarkSurface),
+                  border = androidx.compose.foundation.BorderStroke(1.dp, if (file.isSelected) CyanPrimary else Color(0xFF1E293B)),
+                  modifier = Modifier.fillMaxWidth().clickable { onOpenPreview() }
+              ) {
+                  Column {
             Box(
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f).background(Color(0xFF070B12)),
                 contentAlignment = Alignment.Center
@@ -458,15 +458,15 @@ private fun RecoverableFileCard(
                     fontSize = 9.sp, color = CyanLight, maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
             }
-        }
-    }
-}
+                  }
+              }
+          }
 
-@Composable
-private fun VideoThumbnail(uri: android.net.Uri, modifier: Modifier = Modifier) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val bitmap by produceState<Bitmap?>(initialValue = null, uri) {
-        value = withContext(Dispatchers.IO) {
+          @Composable
+          private fun VideoThumbnail(uri: android.net.Uri, modifier: Modifier = Modifier) {
+              val context = androidx.compose.ui.platform.LocalContext.current
+              val bitmap by produceState<Bitmap?>(initialValue = null, uri) {
+                  value = withContext(Dispatchers.IO) {
             val retriever = MediaMetadataRetriever()
             try {
                 retriever.setDataSource(context, uri)
@@ -476,25 +476,25 @@ private fun VideoThumbnail(uri: android.net.Uri, modifier: Modifier = Modifier) 
             } finally {
                 try { retriever.release() } catch (_: Exception) {}
             }
-        }
-    }
-    if (bitmap != null) {
-        androidx.compose.foundation.Image(
+                  }
+              }
+              if (bitmap != null) {
+                  androidx.compose.foundation.Image(
             bitmap = bitmap!!.asImageBitmap(),
             contentDescription = "Thumbnail video",
             contentScale = ContentScale.Crop,
             modifier = modifier
-        )
-    } else {
-        Box(modifier.background(Color(0xFF111827)), contentAlignment = Alignment.Center) {
+                  )
+              } else {
+                  Box(modifier.background(Color(0xFF111827)), contentAlignment = Alignment.Center) {
             Icon(Icons.Default.Videocam, null, tint = Color(0xFFF43F5E), modifier = Modifier.size(42.dp))
-        }
-    }
-}
+                  }
+              }
+          }
 
-"""
-s = s[:start] + card + s[end:]
-p.write_text(s)
+          """
+          s = s[:start] + card + s[end:]
+          p.write_text(s)
 PY
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
