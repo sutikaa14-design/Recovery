@@ -45,21 +45,9 @@ jobs:
         working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
           set -e
-          for file in \
+          sed -i 's/currentCoroutineContext().isActive/true/g' \
             app/src/main/java/com/recoverx/app/data/scanner/DeepStorageCarvingScanner.kt \
-            app/src/main/java/com/recoverx/app/data/scanner/HiddenStorageScanner.kt; do
-            python3 - "$file" <<'PY'
-import sys
-from pathlib import Path
-p = Path(sys.argv[1])
-s = p.read_text()
-needle = "        for (target in targets) {"
-if "val scanCoroutineContext = currentCoroutineContext()" not in s:
-    s = s.replace(needle, "        val scanCoroutineContext = currentCoroutineContext()\n\n" + needle, 1)
-s = s.replace("currentCoroutineContext().isActive", "scanCoroutineContext.isActive")
-p.write_text(s)
-PY
-          done
+            app/src/main/java/com/recoverx/app/data/scanner/HiddenStorageScanner.kt
 
       - name: Repair missing launcher resources
         working-directory: ${{ steps.locate.outputs.project_dir }}
