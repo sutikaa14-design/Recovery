@@ -482,6 +482,16 @@ jobs:
           sed -i '2i import coil.compose.AsyncImage' "$FILE"
           sed -i 's/import androidx.compose.runtime.Composable/import androidx.compose.runtime.*/' "$FILE"
 
+      - name: Normalize thumbnail imports
+        working-directory: ${{ steps.locate.outputs.project_dir }}
+        run: |
+          set -e
+          FILE="app/src/main/java/com/recoverx/app/ui/screens/FoundFilesScreen.kt"
+          awk '!/^import / || !seen[$0]++' "$FILE" > "$FILE.tmp"
+          mv "$FILE.tmp" "$FILE"
+          sed -i '/import androidx.compose.foundation.lazy.items/d' "$FILE"
+          sed -i '/import androidx.compose.foundation.lazy.LazyRow/a import androidx.compose.foundation.lazy.items\nimport androidx.compose.foundation.lazy.grid.items' "$FILE"
+
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
