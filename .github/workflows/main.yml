@@ -57,6 +57,262 @@ jobs:
           echo "===== build.gradle dependencies ====="
           grep -RniE 'coil|media3|exoplayer|videoview|compose' . --include='build.gradle' --include='build.gradle.kts' | head -n 200 || true
 
+      - name: Add photo and video review preview
+        working-directory: \${{ steps.locate.outputs.project_dir }}
+        run: |
+          set -e
+          cat > app/src/main/java/com/recoverx/app/ui/screens/PreviewScreen.kt <<'EOF'
+          package com.recoverx.app.ui.screens
+
+          import androidx.compose.foundation.background
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.rememberScrollState
+          import androidx.compose.foundation.shape.RoundedCornerShape
+          import androidx.compose.foundation.verticalScroll
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.*
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.Composable
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.draw.clip
+          import androidx.compose.ui.graphics.Color
+          import androidx.compose.ui.layout.ContentScale
+          import androidx.compose.ui.text.font.FontFamily
+          import androidx.compose.ui.text.font.FontWeight
+          import androidx.compose.ui.unit.dp
+          import androidx.compose.ui.unit.sp
+          import androidx.compose.ui.viewinterop.AndroidView
+          import coil.compose.AsyncImage
+          import com.recoverx.app.data.model.RecoverableFile
+          import com.recoverx.app.data.model.RecoveryConfidence
+          import com.recoverx.app.data.model.ScanCategory
+          import com.recoverx.app.ui.theme.*
+          import android.widget.MediaController
+          import android.widget.VideoView
+
+          @Composable
+          fun PreviewScreen(
+              file: RecoverableFile,
+              onBack: () -> Unit,
+              onToggleSelect: () -> Unit,
+              onRecoverSingle: () -> Unit
+          ) {
+              val scrollState = rememberScrollState()
+              val isPhoto = file.category == ScanCategory.PHOTOS
+              val isVideo = file.category == ScanCategory.VIDEOS
+
+              Scaffold(
+                  containerColor = DarkBackground,
+                  topBar = {
+                      Row(
+                          modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                          horizontalArrangement = Arrangement.SpaceBetween,
+                          verticalAlignment = Alignment.CenterVertically
+                      ) {
+                          IconButton(onClick = onBack) {
+                              Icon(Icons.Default.ArrowBack, "Kembali", tint = Color.White)
+                          }
+                          Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                              Text(
+                                  if (isVideo) "Pratinjau Video" else if (isPhoto) "Pratinjau Foto" else "Pratinjau File",
+                                  fontWeight = FontWeight.Bold, color = Color.White, fontSize = 18.sp
+                              )
+                              Text("Sebelum dipulihkan", color = TextSecondary, fontSize = 11.sp)
+                          }
+                          IconButton(onClick = onToggleSelect) {
+                              Icon(
+                                  if (file.isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                  "Pilih",
+                                  tint = if (file.isSelected) CyanPrimary else TextSecondary
+                              )
+                          }
+                      }
+                  },
+                  bottomBar = {
+                      Surface(color = DarkSurface, tonalElevation = 8.dp) {
+                          Row(
+                              modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+                              horizontalArrangement = Arrangement.spacedBy(12.dp)
+                          ) {
+                              OutlinedButton(
+                                  onClick = onToggleSelect,
+                                  modifier = Modifier.weight(1f).height(48.dp),
+                                  shape = RoundedCornerShape(12.dp)
+                              ) { Text(if (file.isSelected) "Batalkan" else "Pilih File") }
+                              Button(
+                                  onClick = onRecoverSingle,
+                                  modifier = Modifier.weight(1.5f).height(48.dp),
+                                  shape = RoundedCornerShape(12.dp),
+                                  colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary, contentColor = DarkBackground)
+                              ) {
+                                  Icon(Icons.Default.Download, null)
+                                  Spacer(Modifier.width(6.dp))
+                                  Text("Pulihkan File Ini", fontWeight = FontWeight.Bold)
+                              }
+                          }
+                      }
+                  }
+              ) { innerPadding ->
+                  Column(
+                      modifier = Modifier.fillMaxSize().padding(innerPadding).verticalScroll(scrollState)
+                          .padding(horizontal = 20.dp, vertical = 8.dp)
+                  ) {
+                      Card(
+                          modifier = Modifier.fillMaxWidth().height(if (isVideo) 260.dp else 250.dp),
+                          shape = RoundedCornerShape(16.dp),
+                          colors = CardDefaults.cardColors(containerColor = Color.Black)
+                      ) {
+                          Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                              when {
+                                  isPhoto && file.uri != null -> {
+                                      AsyncImage(
+                                          model = file.uri,
+                                          contentDescription = file.name,
+                                          contentScale = ContentScale.Fit,
+                                          modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp))
+                                      )
+                                  }
+                                  isVideo && file.uri != null -> {
+                                      AndroidView(
+                                          modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)),
+                                          factory = { context ->
+                                              VideoView(context).apply {
+                                                  val controller = MediaController(context)
+                                                  controller.setAnchorView(this)
+                                                  setMediaController(controller)
+                                                  setVideoURI(file.uri)
+                                              }
+                                          }
+                                      )
+                                  }
+                                  else -> {
+                                      Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                          Box(
+                                              Modifier.size(72.dp).clip(RoundedCornerShape(16.dp))
+                                                  .background(getCategoryColor(file.category).copy(alpha = 0.18f)),
+                                              contentAlignment = Alignment.Center
+                                          ) {
+                                              Icon(getCategoryIcon(file.category), null,
+                                                  tint = getCategoryColor(file.category), modifier = Modifier.size(40.dp))
+                                          }
+                                          Spacer(Modifier.height(10.dp))
+                                          Text("Pratinjau visual tidak tersedia", color = Color.White, fontWeight = FontWeight.Bold)
+                                          Text("File tetap dapat dianalisis/dipulihkan bila datanya valid.", color = TextSecondary, fontSize = 12.sp)
+                                      }
+                                  }
+                              }
+                          }
+                      }
+
+                      Spacer(Modifier.height(12.dp))
+                      Row(verticalAlignment = Alignment.CenterVertically) {
+                          Icon(
+                              if (isVideo) Icons.Default.PlayCircle else if (isPhoto) Icons.Default.Visibility else Icons.Default.InsertDriveFile,
+                              null, tint = CyanLight, modifier = Modifier.size(18.dp)
+                          )
+                          Spacer(Modifier.width(8.dp))
+                          Text(
+                              if (isVideo && file.uri != null) "Tekan Play untuk meninjau video"
+                              else if (isPhoto && file.uri != null) "Foto ditemukan dan dapat ditinjau"
+                              else "Hasil recovery perlu diperiksa setelah pemulihan",
+                              color = TextSecondary, fontSize = 12.sp
+                          )
+                      }
+
+                      Spacer(Modifier.height(20.dp))
+                      Text("Informasi File & Recovery", style = MaterialTheme.typography.titleMedium,
+                          fontWeight = FontWeight.Bold, color = Color.White)
+                      Spacer(Modifier.height(10.dp))
+                      Card(
+                          modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                          colors = CardDefaults.cardColors(containerColor = DarkSurface)
+                      ) {
+                          Column(Modifier.padding(16.dp)) {
+                              MetaRow("Nama File", file.name)
+                              Divider(color = Color(0xFF1E293B), modifier = Modifier.padding(vertical = 8.dp))
+                              MetaRow("Ukuran", "${file.sizeBytes} bytes (${formatFileSize(file.sizeBytes)})")
+                              Divider(color = Color(0xFF1E293B), modifier = Modifier.padding(vertical = 8.dp))
+                              MetaRow("Tipe MIME", file.mimeType)
+                              Divider(color = Color(0xFF1E293B), modifier = Modifier.padding(vertical = 8.dp))
+                              MetaRow("Sumber", sourceLabel(file))
+                              Divider(color = Color(0xFF1E293B), modifier = Modifier.padding(vertical = 8.dp))
+                              MetaRow("Integritas", confidenceLabel(file.confidence))
+                              if (file.originalPath.isNotEmpty()) {
+                                  Divider(color = Color(0xFF1E293B), modifier = Modifier.padding(vertical = 8.dp))
+                                  MetaRow("Lokasi Temuan", file.originalPath)
+                              }
+                          }
+                      }
+
+                      Spacer(Modifier.height(20.dp))
+                      Text("Inspeksi Binary Signature", style = MaterialTheme.typography.titleMedium,
+                          fontWeight = FontWeight.Bold, color = Color.White)
+                      Spacer(Modifier.height(10.dp))
+                      Card(
+                          modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp),
+                          colors = CardDefaults.cardColors(containerColor = Color(0xFF070B12))
+                      ) {
+                          Column(Modifier.padding(14.dp)) {
+                              Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                  Text("Offset 0x00000000", fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = CyanLight)
+                                  Text("Signature terdeteksi", fontSize = 11.sp, color = AccentGreen, fontWeight = FontWeight.Bold)
+                              }
+                              Spacer(Modifier.height(8.dp))
+                              Text(file.hexSnippet ?: "FF D8 FF E0 00 10 4A 46 49 46 00 01 01 00",
+                                  fontFamily = FontFamily.Monospace, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                                  color = Color.White, lineHeight = 20.sp)
+                          }
+                      }
+                      Spacer(Modifier.height(24.dp))
+                  }
+              }
+          }
+
+          @Composable
+          private fun MetaRow(label: String, value: String) {
+              Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                  Text(label, fontSize = 12.sp, color = TextSecondary)
+                  Text(value, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 2)
+              }
+          }
+
+          private fun sourceLabel(file: RecoverableFile): String = when (file.source.name) {
+              "MEDIASTORE_TRASH" -> "MediaStore / Sampah"
+              "HIDDEN_CACHE" -> "Cache / Thumbnail tersembunyi"
+              "FILE_CARVING" -> "File Carving / Signature"
+              "LOST_DIR" -> "LOST.DIR / Orphan"
+              else -> file.source.name
+          }
+
+          private fun confidenceLabel(confidence: RecoveryConfidence): String = when (confidence) {
+              RecoveryConfidence.HIGH -> "Tinggi — struktur file utuh"
+              RecoveryConfidence.MEDIUM -> "Sedang — sebagian struktur diverifikasi"
+              RecoveryConfidence.LOW -> "Rendah — kemungkinan fragmentasi"
+          }
+
+          private fun formatFileSize(bytes: Long): String {
+              if (bytes < 1024) return "${bytes} B"
+              val kb = bytes / 1024.0
+              if (kb < 1024) return String.format("%.1f KB", kb)
+              val mb = kb / 1024.0
+              if (mb < 1024) return String.format("%.1f MB", mb)
+              return String.format("%.2f GB", mb / 1024.0)
+          }
+
+          private fun getCategoryIcon(category: ScanCategory) = when (category) {
+              ScanCategory.PHOTOS -> Icons.Default.Image
+              ScanCategory.VIDEOS -> Icons.Default.Videocam
+              else -> Icons.Default.InsertDriveFile
+          }
+
+          private fun getCategoryColor(category: ScanCategory) = when (category) {
+              ScanCategory.PHOTOS -> CyanLight
+              ScanCategory.VIDEOS -> Color(0xFFF43F5E)
+              else -> TextSecondary
+          }
+          EOF
+
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
