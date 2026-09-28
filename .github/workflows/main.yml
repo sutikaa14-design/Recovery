@@ -463,6 +463,25 @@ jobs:
           p.write_text(s)
 
           PY
+      - name: Repair thumbnail imports
+        working-directory: ${{ steps.locate.outputs.project_dir }}
+        run: |
+          set -e
+          FILE="app/src/main/java/com/recoverx/app/ui/screens/FoundFilesScreen.kt"
+          sed -i '/import androidx.compose.foundation.lazy.items/d' "$FILE"
+          sed -i '/import androidx.compose.foundation.lazy.LazyRow/a import androidx.compose.foundation.lazy.grid.items' "$FILE"
+          sed -i '2i import androidx.compose.foundation.lazy.grid.GridCells' "$FILE"
+          sed -i '2i import androidx.compose.foundation.lazy.grid.LazyVerticalGrid' "$FILE"
+          sed -i '2i import androidx.compose.foundation.shape.CircleShape' "$FILE"
+          sed -i '2i import androidx.compose.ui.graphics.asImageBitmap' "$FILE"
+          sed -i '2i import androidx.compose.ui.layout.ContentScale' "$FILE"
+          sed -i '2i import android.graphics.Bitmap' "$FILE"
+          sed -i '2i import android.media.MediaMetadataRetriever' "$FILE"
+          sed -i '2i import kotlinx.coroutines.Dispatchers' "$FILE"
+          sed -i '2i import kotlinx.coroutines.withContext' "$FILE"
+          sed -i '2i import coil.compose.AsyncImage' "$FILE"
+          sed -i 's/import androidx.compose.runtime.Composable/import androidx.compose.runtime.*/' "$FILE"
+
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
