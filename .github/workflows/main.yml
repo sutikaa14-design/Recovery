@@ -312,6 +312,7 @@ jobs:
               else -> TextSecondary
           }
           EOF
+          sed -i 's/formatFileSize/previewFormatFileSize/g; s/getCategoryIcon/previewCategoryIcon/g; s/getCategoryColor/previewCategoryColor/g' app/src/main/java/com/recoverx/app/ui/screens/PreviewScreen.kt
 
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
