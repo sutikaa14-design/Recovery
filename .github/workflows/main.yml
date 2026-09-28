@@ -33,6 +33,17 @@ jobs:
           if [ -z "$PROJECT_DIR" ]; then exit 1; fi
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
+      - name: Inspect recovery result architecture
+        working-directory: ${{ steps.locate.outputs.project_dir }}
+        run: |
+          set -e
+          echo "===== SOURCE TREE ====="
+          find app/src/main/java app/src/main/res -type f | sort | sed -n '1,260p'
+          echo "===== RECOVERY/RESULT/PHOTO/VIDEO REFERENCES ====="
+          grep -RniE 'recover|restore|scan result|thumbnail|preview|video|photo|image|media' app/src/main/java --include='*.kt' --include='*.java' | head -n 400 || true
+          echo "===== LAYOUT/COMPOSE REFERENCES ====="
+          grep -RniE 'RecyclerView|LazyVerticalGrid|LazyColumn|AsyncImage|ImageView|VideoView|ExoPlayer|Media3|Coil|Glide|BitmapFactory' app/src/main/java app/src/main/res --include='*.kt' --include='*.java' --include='*.xml' | head -n 300 || true
+
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
