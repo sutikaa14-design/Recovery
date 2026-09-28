@@ -58,7 +58,7 @@ jobs:
           grep -RniE 'coil|media3|exoplayer|videoview|compose' . --include='build.gradle' --include='build.gradle.kts' | head -n 200 || true
 
       - name: Add photo and video review preview
-        working-directory: \${{ steps.locate.outputs.project_dir }}
+        working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
           set -e
           cat > app/src/main/java/com/recoverx/app/ui/screens/PreviewScreen.kt <<'EOF'
