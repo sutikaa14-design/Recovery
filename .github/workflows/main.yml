@@ -502,7 +502,7 @@ jobs:
           done
 
       - name: Harden recovery flow and enable live results
-        working-directory: \${{ steps.locate.outputs.project_dir }}
+        working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
           set -e
           python3 - <<'PY'
