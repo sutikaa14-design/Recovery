@@ -64,6 +64,13 @@ s = replace_or_fail(s,
                                 onViewResults = { viewModel.viewResultsDuringScan() }
                             )""", "ScanningScreen call")
 s = s.replace("onRecoverSingle = { viewModel.showDestinationDialog() }", "onRecoverSingle = { viewModel.recoverSingle(screen.file) }")
+s = s.replace(
+"""                                onCancelScan = {}
+                            )""",
+"""                                onCancelScan = {},
+                                onViewResults = {}
+                            )"""
+)
 p.write_text(s)
 
 # ScanningScreen
