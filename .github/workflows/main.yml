@@ -44,6 +44,19 @@ jobs:
           echo "===== LAYOUT/COMPOSE REFERENCES ====="
           grep -RniE 'RecyclerView|LazyVerticalGrid|LazyColumn|AsyncImage|ImageView|VideoView|ExoPlayer|Media3|Coil|Glide|BitmapFactory' app/src/main/java app/src/main/res --include='*.kt' --include='*.java' --include='*.xml' | head -n 300 || true
 
+      - name: Inspect preview implementation details
+        working-directory: ${{ steps.locate.outputs.project_dir }}
+        run: |
+          set -e
+          echo "===== RecoverableFile.kt ====="
+          cat app/src/main/java/com/recoverx/app/data/model/RecoverableFile.kt
+          echo "===== PreviewScreen.kt ====="
+          cat app/src/main/java/com/recoverx/app/ui/screens/PreviewScreen.kt
+          echo "===== FoundFilesScreen.kt ====="
+          cat app/src/main/java/com/recoverx/app/ui/screens/FoundFilesScreen.kt
+          echo "===== build.gradle dependencies ====="
+          grep -RniE 'coil|media3|exoplayer|videoview|compose' . --include='build.gradle' --include='build.gradle.kts' | head -n 200 || true
+
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
