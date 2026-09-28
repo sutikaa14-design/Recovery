@@ -492,6 +492,15 @@ jobs:
           sed -i '/import androidx.compose.foundation.lazy.items/d' "$FILE"
           sed -i '/import androidx.compose.foundation.lazy.LazyRow/a import androidx.compose.foundation.lazy.items\nimport androidx.compose.foundation.lazy.grid.items' "$FILE"
 
+      - name: Diagnose recovery flow sources
+        working-directory: ${{ steps.locate.outputs.project_dir }}
+        run: |
+          set -e
+          for f in app/src/main/java/com/recoverx/app/data/recovery/RecoveryManager.kt app/src/main/java/com/recoverx/app/ui/viewmodel/RecoveryViewModel.kt app/src/main/java/com/recoverx/app/MainActivity.kt app/src/main/java/com/recoverx/app/ui/screens/RecoveryDestinationDialog.kt app/src/main/java/com/recoverx/app/ui/screens/RecoveryResultScreen.kt app/src/main/java/com/recoverx/app/ui/screens/ScanningScreen.kt; do
+            echo "===== $f ====="
+            cat "$f"
+          done
+
       - name: Diagnose Kotlin compile errors
         working-directory: ${{ steps.locate.outputs.project_dir }}
         run: |
