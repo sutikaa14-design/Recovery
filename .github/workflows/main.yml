@@ -333,7 +333,7 @@ jobs:
           s = s.replace("import androidx.compose.foundation.layout.*", "import androidx.compose.foundation.layout.*\nimport androidx.compose.foundation.shape.CircleShape\nimport androidx.compose.ui.graphics.asImageBitmap\nimport androidx.compose.ui.layout.ContentScale")
           s = s.replace("import androidx.compose.runtime.Composable", "import androidx.compose.runtime.*")
           s = s.replace("import coil.compose.AsyncImage", "import coil.compose.AsyncImage\nimport android.graphics.Bitmap\nimport android.media.MediaMetadataRetriever\nimport kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.withContext")
-          old = """                LazyColumn(
+          old = '''                LazyColumn(
                               verticalArrangement = Arrangement.spacedBy(8.dp),
                               modifier = Modifier.fillMaxSize()
                           ) {
@@ -344,8 +344,8 @@ jobs:
                                       onOpenPreview = { onOpenFilePreview(item) }
                                   )
                               }
-                          }"""
-          new = """                LazyVerticalGrid(
+                          }'''
+          new = '''                LazyVerticalGrid(
                               columns = GridCells.Fixed(2),
                               horizontalArrangement = Arrangement.spacedBy(10.dp),
                               verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -358,12 +358,12 @@ jobs:
                                       onOpenPreview = { onOpenFilePreview(item) }
                                   )
                               }
-                          }"""
+                          }'''
           if old not in s: raise SystemExit("results list block not found")
           s = s.replace(old, new)
           start = s.index("@Composable\nprivate fun RecoverableFileCard(")
           end = s.index("\nfun formatFileSize(bytes: Long): String", start)
-          card = """@Composable
+          card = '''@Composable
           private fun RecoverableFileCard(
               file: RecoverableFile,
               onToggleSelect: () -> Unit,
@@ -458,6 +458,9 @@ jobs:
               }
           }
 
+          '''
+          s = s[:start] + card + s[end:]
+          p.write_text(s)
 
           PY
       - name: Diagnose Kotlin compile errors
