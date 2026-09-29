@@ -172,7 +172,7 @@ if "OpenDocumentTree()" not in s:
             RecoverXTheme {"""
     )
 # Replace dialog call block using a broad balanced-ish regex.
-pattern = r"""RecoveryDestinationDialog(s*[sS]*?onConfirmDefaultLocation = { viewModel.executeRecovery(null) }s*)"""
+pattern = r"""RecoveryDestinationDialog\([\s\S]*?onConfirmDefaultLocation\s*=\s*\{\s*viewModel\.executeRecovery\(null\)\s*\}\s*\)"""
 m = re.search(pattern, s)
 if m:
     replacement = """RecoveryDestinationDialog(
@@ -183,8 +183,11 @@ if m:
                         )"""
     s = s[:m.start()] + replacement + s[m.end():]
 else:
-    # If signature differs, leave the original and add a marker for diagnostics.
-    pass
+    s = s.replace(
+        "onConfirmDefaultLocation = { viewModel.executeRecovery(null) }",
+        """onConfirmDefaultLocation = { viewModel.executeRecovery(null) },
+                            onChooseFolder = { recoveryFolderLauncher.launch(null) }"""
+    )
 p.write_text(s)
 
 # Replace/overwrite destination dialog so the Choose Folder action is always wired.
