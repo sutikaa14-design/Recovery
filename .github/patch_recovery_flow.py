@@ -140,54 +140,47 @@ p.write_text(s)
 # Replace the destination dialog with a guaranteed Android SAF folder picker.
 p = Path("app/src/main/java/com/recoverx/app/MainActivity.kt")
 s = p.read_text()
-for imp in [
-    "import androidx.activity.compose.rememberLauncherForActivityResult",
-    "import androidx.activity.result.contract.ActivityResultContracts",
-    "import androidx.compose.runtime.LaunchedEffect"
-]:
-    if imp not in s:
-        s = s.replace("import androidx.activity.viewModels", "import androidx.activity.viewModels\n"+imp, 1)
+if "private val recoveryFolderLauncher" not in s:
+    s = s.replace(
+        """    private val viewModel: RecoveryViewModel by viewModels()""",
+        """    private val viewModel: RecoveryViewModel by viewModels()
 
-# Add SAF launcher inside setContent before RecoverXTheme.
-if "OpenDocumentTree()" not in s:
-    s = s.replace(
-        """        setContent {
-            RecoverXTheme {""",
-        """        setContent {
-            val recoveryFolderLauncher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.OpenDocumentTree()
-            ) { uri ->
-                if (uri != null) {
-                    try {
-                        contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                        )
-                    } catch (_: Exception) {
-                        // Some providers do not allow persistable permission; recovery can still use the returned URI.
-                    }
-                    viewModel.executeRecovery(uri)
-                }
-            }
-            RecoverXTheme {"""
+    private val recoveryFolderLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri ->
+        if (uri != null) {
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (_: Exception) {}
+            viewModel.executeRecovery(uri)
+        }
+    }"""
     )
-# Replace dialog call block using a broad balanced-ish regex.
-pattern = r"""RecoveryDestinationDialog\([\s\S]*?onConfirmDefaultLocation\s*=\s*\{\s*viewModel\.executeRecovery\(null\)\s*\}\s*\)"""
-m = re.search(pattern, s)
-if m:
-    replacement = """RecoveryDestinationDialog(
-                            visible = state.isTargetDestinationDialogVisible,
-                            onDismiss = { viewModel.hideDestinationDialog() },
-                            onConfirmDefaultLocation = { viewModel.executeRecovery(null) },
-                            onChooseFolder = { recoveryFolderLauncher.launch(null) }
-                        )"""
-    s = s[:m.start()] + replacement + s[m.end():]
-else:
-    s = s.replace(
-        "onConfirmDefaultLocation = { viewModel.executeRecovery(null) }",
-        """onConfirmDefaultLocation = { viewModel.executeRecovery(null) },
+
+s = s.replace(
+    "onConfirmDefaultLocation = { viewModel.executeRecovery(null) }",
+    """onConfirmDefaultLocation = { viewModel.executeRecovery(null) },
                             onChooseFolder = { recoveryFolderLauncher.launch(null) }"""
+)
+p.write_text(s)
+
+p = Path("app/src/main/java/com/recoverx/app/ui/screens/PreviewScreen.kt")
+s = p.read_text()
+if "val previewMediaSource: Any?" not in s:
+    s = s.replace(
+        """    val scrollState = rememberScrollState()""",
+        """    val scrollState = rememberScrollState()
+    val previewMediaSource: Any? = file.uri ?: file.originalPath.takeIf { it.isNotBlank() }?.let { java.io.File(it) }""",
+        1
     )
+s = s.replace("isPhoto && file.uri != null", "isPhoto && previewMediaSource != null")
+s = s.replace("isVideo && file.uri != null", "isVideo && previewMediaSource != null")
+s = s.replace("model = file.uri", "model = previewMediaSource")
+s = s.replace("setVideoURI(file.uri)", "setVideoURI(previewMediaSource as android.net.Uri)")
+s = s.replace("if (isVideo && file.uri != null)", "if (isVideo && previewMediaSource != null)")
 p.write_text(s)
 
 # Replace/overwrite destination dialog so the Choose Folder action is always wired.
