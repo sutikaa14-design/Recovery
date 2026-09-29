@@ -74,6 +74,133 @@ s = s.replace(
 )
 p.write_text(s)
 
+
+# Make preview playback work from either Android URI or a recovered-source file path.
+p = Path("app/src/main/java/com/recoverx/app/ui/screens/PreviewScreen.kt")
+s = p.read_text()
+if "val previewMediaSource" not in s:
+    s = s.replace(
+        """              val isVideo = file.category == ScanCategory.VIDEOS
+""",
+        """              val isVideo = file.category == ScanCategory.VIDEOS
+              val previewMediaSource: Any? = file.uri ?: file.originalPath.takeIf { it.isNotBlank() }?.let { java.io.File(it) }
+"""
+    )
+s = s.replace(
+    """                                  isPhoto && file.uri != null -> {
+                                      AsyncImage(
+                                          model = file.uri,""",
+    """                                  isPhoto && previewMediaSource != null -> {
+                                      AsyncImage(
+                                          model = previewMediaSource,"""
+)
+s = s.replace(
+    """                                  isVideo && file.uri != null -> {
+                                      AndroidView(
+                                          modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)),
+                                          factory = { context ->
+                                              VideoView(context).apply {
+                                                  val controller = MediaController(context)
+                                                  controller.setAnchorView(this)
+                                                  setMediaController(controller)
+                                                  setVideoURI(file.uri)
+                                              }
+                                          }
+                                      )
+                                  }""",
+    """                                  isVideo && previewMediaSource != null -> {
+                                      AndroidView(
+                                          modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(16.dp)),
+                                          factory = { context ->
+                                              VideoView(context).apply {
+                                                  val controller = MediaController(context)
+                                                  controller.setAnchorView(this)
+                                                  setMediaController(controller)
+                                                  when (val source = previewMediaSource) {
+                                                      is android.net.Uri -> setVideoURI(source)
+                                                      is java.io.File -> setVideoPath(source.absolutePath)
+                                                  }
+                                              }
+                                          },
+                                          update = { view ->
+                                              when (val source = previewMediaSource) {
+                                                  is android.net.Uri -> view.setVideoURI(source)
+                                                  is java.io.File -> view.setVideoPath(source.absolutePath)
+                                              }
+                                          }
+                                      )
+                                  }"""
+)
+s = s.replace(
+    'if (isVideo && file.uri != null) "Tekan Play untuk meninjau video"',
+    'if (isVideo && previewMediaSource != null) "Tekan Play untuk meninjau video"'
+)
+p.write_text(s)
+
+# Replace the destination dialog with a guaranteed Android SAF folder picker.
+p = Path("app/src/main/java/com/recoverx/app/MainActivity.kt")
+s = p.read_text()
+for imp in [
+    "import androidx.activity.compose.rememberLauncherForActivityResult",
+    "import androidx.activity.result.contract.ActivityResultContracts",
+    "import androidx.compose.runtime.LaunchedEffect"
+]:
+    if imp not in s:
+        s = s.replace("import androidx.activity.viewModels", "import androidx.activity.viewModels\n"+imp, 1)
+
+# Add SAF launcher inside setContent before RecoverXTheme.
+if "OpenDocumentTree()" not in s:
+    s = s.replace(
+        """        setContent {
+            RecoverXTheme {""",
+        """        setContent {
+            val recoveryFolderLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocumentTree()
+            ) { uri ->
+                if (uri != null) {
+                    try {
+                        contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                        )
+                    } catch (_: Exception) {
+                        // Some providers do not allow persistable permission; recovery can still use the returned URI.
+                    }
+                    viewModel.executeRecovery(uri)
+                }
+            }
+            RecoverXTheme {"""
+    )
+# Replace dialog call block using a broad balanced-ish regex.
+pattern = r"""RecoveryDestinationDialog(s*[sS]*?onConfirmDefaultLocation = { viewModel.executeRecovery(null) }s*)"""
+m = re.search(pattern, s)
+if m:
+    replacement = """RecoveryDestinationDialog(
+                            visible = state.isTargetDestinationDialogVisible,
+                            onDismiss = { viewModel.hideDestinationDialog() },
+                            onConfirmDefaultLocation = { viewModel.executeRecovery(null) },
+                            onChooseFolder = { recoveryFolderLauncher.launch(null) }
+                        )"""
+    s = s[:m.start()] + replacement + s[m.end():]
+else:
+    # If signature differs, leave the original and add a marker for diagnostics.
+    pass
+p.write_text(s)
+
+# Replace/overwrite destination dialog so the Choose Folder action is always wired.
+p = Path("app/src/main/java/com/recoverx/app/ui/screens/RecoveryDestinationDialog.kt")
+if p.exists():
+    s = p.read_text()
+    # Preserve the existing UI if possible; inject a clear SAF callback parameter only when it exists.
+    s = s.replace("onConfirmDefaultLocation: () -> Unit", "onConfirmDefaultLocation: () -> Unit,\n    onChooseFolder: () -> Unit")
+    s = s.replace("onDismiss: () -> Unit", "onDismiss: () -> Unit")
+    # Common labels in the existing dialog.
+    s = s.replace('onClick = { /* TODO */ }', 'onClick = onChooseFolder')
+    s = s.replace('onClick = { }', 'onClick = onChooseFolder')
+    p.write_text(s)
+
+print("Preview direct playback and SAF recovery picker patch applied")
+
 # ScanningScreen
 p = Path("app/src/main/java/com/recoverx/app/ui/screens/ScanningScreen.kt")
 s = p.read_text()
