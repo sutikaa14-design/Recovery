@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 def replace_or_fail(text, old, new, label):
     if old not in text:
@@ -288,7 +289,7 @@ if "Temuan berdasarkan kategori" not in s:
                 ) {
                     Column(Modifier.padding(10.dp)) {
                         Text(kind, color = CyanLight, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                        Text("\$count temuan", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("$count temuan", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
