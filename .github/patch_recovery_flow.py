@@ -140,7 +140,11 @@ p.write_text(s)
 # Replace the destination dialog with a guaranteed Android SAF folder picker.
 p = Path("app/src/main/java/com/recoverx/app/MainActivity.kt")
 s = p.read_text()
-if "private val recoveryFolderLauncher" not in s:
+if "import androidx.activity.result.contract.ActivityResultContracts" not in s:
+    s = s.replace("import androidx.activity.viewModels", "import androidx.activity.viewModels\nimport androidx.activity.result.contract.ActivityResultContracts", 1)
+if "import android.content.Intent" not in s:
+    s = s.replace("package com.recoverx.app", "package com.recoverx.app\n\nimport android.content.Intent", 1)
+if "private val recoveryFolderLauncher" not in s not in s:
     s = s.replace(
         """    private val viewModel: RecoveryViewModel by viewModels()""",
         """    private val viewModel: RecoveryViewModel by viewModels()
